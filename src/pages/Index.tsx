@@ -1,13 +1,19 @@
 import { useState, useMemo } from "react";
 import { TeamSelector } from "@/components/TeamSelector";
 import { TeamMemberRow } from "@/components/TeamMemberRow";
-import { teams, getTeamMembers } from "@/lib/mockData";
+import { DateRangeFilter, DateRange } from "@/components/DateRangeFilter";
+import { teams, getTeamMembers, getDefaultDateRange } from "@/lib/mockData";
 import { Activity, GitCommit, TrendingUp } from "lucide-react";
+import { differenceInDays } from "date-fns";
 
 const Index = () => {
   const [selectedTeam, setSelectedTeam] = useState(teams[0].id);
+  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
   
-  const teamMembers = useMemo(() => getTeamMembers(selectedTeam), [selectedTeam]);
+  const teamMembers = useMemo(
+    () => getTeamMembers(selectedTeam, dateRange),
+    [selectedTeam, dateRange]
+  );
   
   const teamStats = useMemo(() => {
     const total = teamMembers.reduce((sum, m) => sum + m.totalContributions, 0);
@@ -17,6 +23,15 @@ const Index = () => {
     );
     return { total, avg, topContributor };
   }, [teamMembers]);
+
+  const periodLabel = useMemo(() => {
+    const days = differenceInDays(dateRange.to, dateRange.from);
+    if (days <= 7) return "Last week";
+    if (days <= 30) return "Last month";
+    if (days <= 90) return "Last 3 months";
+    if (days <= 182) return "Last 6 months";
+    return "Last year";
+  }, [dateRange]);
 
   const currentTeam = teams.find((t) => t.id === selectedTeam);
 
@@ -33,13 +48,19 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Team Selector and Stats */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
-          <TeamSelector
-            teams={teams}
-            selectedTeam={selectedTeam}
-            onSelectTeam={setSelectedTeam}
-          />
+        {/* Team Selector, Date Filter and Stats */}
+        <div className="flex flex-col gap-6 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <TeamSelector
+              teams={teams}
+              selectedTeam={selectedTeam}
+              onSelectTeam={setSelectedTeam}
+            />
+            <DateRangeFilter
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </div>
           
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 px-4 py-2 bg-card rounded-lg border border-border/50">
@@ -72,7 +93,7 @@ const Index = () => {
             {currentTeam?.name}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {currentTeam?.memberCount} team members · Last 6 months of activity
+            {currentTeam?.memberCount} team members · {periodLabel} of activity
           </p>
         </div>
 
