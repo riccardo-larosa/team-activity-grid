@@ -1,20 +1,40 @@
-// Generate mock contribution data
-const generateContributions = (weeks: number = 26, activityLevel: number = 0.5) => {
+import { differenceInDays } from "date-fns";
+
+export type DateRange = {
+  from: Date;
+  to: Date;
+};
+
+// Seeded random for consistent data per member
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
+
+// Generate mock contribution data for a date range
+const generateContributions = (
+  dateRange: DateRange,
+  activityLevel: number = 0.5,
+  seed: number = 0
+) => {
   const contributions = [];
-  const today = new Date();
-  
-  for (let i = weeks * 7 - 1; i >= 0; i--) {
-    const date = new Date(today);
+  const days = differenceInDays(dateRange.to, dateRange.from) + 1;
+
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date(dateRange.to);
     date.setDate(date.getDate() - i);
-    
-    // Random contribution count based on activity level
+
+    // Use seeded random for consistent data
+    const daySeed = seed + date.getTime();
+    const random = seededRandom(daySeed);
+
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
     const baseChance = isWeekend ? 0.3 : 0.7;
-    const hasContribution = Math.random() < baseChance * activityLevel;
+    const hasContribution = random < baseChance * activityLevel;
     const count = hasContribution
-      ? Math.floor(Math.random() * 12 * activityLevel) + 1
+      ? Math.floor(seededRandom(daySeed + 1) * 12 * activityLevel) + 1
       : 0;
-    
+
     contributions.push({
       date: date.toLocaleDateString("en-US", {
         weekday: "short",
@@ -25,7 +45,7 @@ const generateContributions = (weeks: number = 26, activityLevel: number = 0.5) 
       count,
     });
   }
-  
+
   return contributions;
 };
 
@@ -100,11 +120,20 @@ const defaultMembers = [
   { name: "Riley Taylor", role: "Junior Engineer", activityLevel: 0.55 },
 ];
 
-export const getTeamMembers = (teamId: string) => {
+export const getDefaultDateRange = (): DateRange => {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 182); // 6 months default
+  return { from, to };
+};
+
+export const getTeamMembers = (teamId: string, dateRange: DateRange = getDefaultDateRange()) => {
   const members = membersByTeam[teamId] || defaultMembers.slice(0, teams.find(t => t.id === teamId)?.memberCount || 5);
   
-  return members.map((member) => {
-    const contributions = generateContributions(26, member.activityLevel);
+  return members.map((member, index) => {
+    // Use member index as seed for consistent data
+    const seed = teamId.charCodeAt(0) * 1000 + index;
+    const contributions = generateContributions(dateRange, member.activityLevel, seed);
     return {
       ...member,
       contributions,
